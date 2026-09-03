@@ -17,4 +17,14 @@ public class Metadata {
     private int height;
     private int bandCount;
     private String uploadedPath;
+
+    private String driver;
+    private String dataType;
+    private String crs;
+    private Double pixelSizeX;
+    private Double pixelSizeY;
+    private Double minX;
+    private Double minY;
+    private Double maxX;
+    private Double maxY;
 }
