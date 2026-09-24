@@ -28,7 +28,9 @@ python scripts/e2e/run_scenarios.py --base-url "$BASE_URL" --with-docker
 
 if [ "${1:-}" = "--perf" ]; then
   echo "== 4. 성능 테스트"
+  # E2E 의 스토리지 장애 시나리오(TC-FT-02)가 S3 를 초기화하므로, 조회 가능 여부를 확인하고 필요하면 다시 적재
   python scripts/perf/prepare.py --base-url "$BASE_URL"
   python scripts/perf/compare_algorithms.py --base-url "$BASE_URL" --pairs 300
-  k6 run -e BASE_URL="$BASE_URL" --summary-export=build/perf-summary.json scripts/perf/load-test.js
+  # 워밍업 후 3회 반복, API 별 중앙값 (오류 응답이 섞이면 실패 처리)
+  python scripts/perf/bench.py --base-url "$BASE_URL" --label latest --runs 3
 fi
