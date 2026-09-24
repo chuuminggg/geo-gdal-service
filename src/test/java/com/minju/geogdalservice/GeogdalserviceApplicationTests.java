@@ -6,7 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @Import(PostgisTestcontainersConfig.class)
 @Testcontainers(disabledWithoutDocker = true)
 class GeogdalserviceApplicationTests {
