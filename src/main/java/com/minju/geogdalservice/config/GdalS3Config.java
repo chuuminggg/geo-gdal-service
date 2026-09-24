@@ -53,6 +53,9 @@ public class GdalS3Config {
         // 파일을 열 때 디렉터리 목록 조회(LIST 요청)를 생략해 지연시간 감소
         gdal.SetConfigOption("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR");
         gdal.SetConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif,.tiff");
+        // 스토리지 장애 시 조회 요청이 오래 붙잡히지 않도록 타임아웃 (초)
+        gdal.SetConfigOption("GDAL_HTTP_CONNECTTIMEOUT", "5");
+        gdal.SetConfigOption("GDAL_HTTP_TIMEOUT", "30");
         // 한 번 읽은 블록은 프로세스 메모리에 캐시
         gdal.SetConfigOption("VSI_CACHE", "TRUE");
         gdal.SetConfigOption("VSI_CACHE_SIZE", String.valueOf(64 * 1024 * 1024));
