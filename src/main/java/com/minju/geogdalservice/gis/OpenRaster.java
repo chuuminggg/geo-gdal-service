@@ -1,5 +1,6 @@
 package com.minju.geogdalservice.gis;
 
+import com.minju.geogdalservice.common.exception.StorageException;
 import org.gdal.gdal.Band;
 import org.gdal.gdal.Dataset;
 import org.gdal.gdal.gdal;
@@ -51,7 +52,7 @@ public class OpenRaster implements AutoCloseable {
     public static OpenRaster open(String gdalPath) {
         Dataset dataset = gdal.Open(gdalPath, gdalconstConstants.GA_ReadOnly);
         if (dataset == null) {
-            throw new IllegalStateException("래스터를 열 수 없습니다: " + gdalPath + " (" + gdal.GetLastErrorMsg() + ")");
+            throw new StorageException("래스터를 열 수 없습니다: " + gdalPath + " (" + gdal.GetLastErrorMsg() + ")");
         }
         try {
             return new OpenRaster(dataset);

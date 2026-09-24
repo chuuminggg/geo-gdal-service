@@ -1,5 +1,6 @@
 package com.minju.geogdalservice.service;
 
+import com.minju.geogdalservice.common.exception.StorageException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,7 @@ public class S3ServiceImpl implements S3Service {
 
         } catch (SdkException e) {
             log.error("Failed to upload file to S3: bucket={}, key={}", bucket, key, e);
-            throw new IllegalStateException("S3 업로드 실패: " + key, e);
+            throw new StorageException("S3 업로드 실패: " + key, e);
         }
     }
 
@@ -55,7 +56,7 @@ public class S3ServiceImpl implements S3Service {
 
         } catch (IOException | SdkException e) {
             log.error("Failed to download file from S3: bucket={}, key={}", bucket, key, e);
-            throw new IllegalStateException("S3 다운로드 실패: " + key, e);
+            throw new StorageException("S3 다운로드 실패: " + key, e);
         }
     }
 

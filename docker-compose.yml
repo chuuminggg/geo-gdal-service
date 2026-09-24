@@ -25,6 +25,30 @@ services:
       - "4566:4566"
     volumes:
       - ./docker/localstack:/etc/localstack/init/ready.d
+    healthcheck:
+      # 버킷 생성(init 스크립트)까지 끝나야 healthy
+      test: ["CMD-SHELL", "awslocal s3api head-bucket --bucket geogdal-files"]
+      interval: 5s
+      retries: 20
+
+  # 애플리케이션 (GDAL 포함 이미지). 시스템 테스트 시: docker compose --profile app up -d --build
+  app:
+    profiles: ["app"]
+    build: .
+    container_name: geogdal-app
+    environment:
+      DB_URL: jdbc:postgresql://postgis:5432/geogdal
+      AWS_S3_ENDPOINT: http://localstack:4566
+      AWS_ACCESS_KEY: test
+      AWS_SECRET_KEY: test
+      ELEVATION_DATASET: ${ELEVATION_DATASET:-e2e-dem}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
 
 volumes:
   postgis-data:

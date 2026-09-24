@@ -4,9 +4,11 @@ package com.minju.geogdalservice.common.handler;
 import com.minju.geogdalservice.common.dto.CommonResponse;
 import com.minju.geogdalservice.common.exception.GdalUnavailableException;
 import com.minju.geogdalservice.common.exception.NotFoundException;
+import com.minju.geogdalservice.common.exception.StorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,7 +34,8 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException.class,
             MissingServletRequestPartException.class,
             MethodArgumentTypeMismatchException.class,
-            MethodArgumentNotValidException.class
+            MethodArgumentNotValidException.class,
+            HttpMessageNotReadableException.class   // JSON 형식 오류, 없는 enum 값 등
     })
     public ResponseEntity<CommonResponse<?>> handleBadRequest(Exception e) {
         log.warn("GlobalExceptionHandler bad request: {}", e.getMessage());
@@ -67,6 +70,13 @@ public class GlobalExceptionHandler {
         log.error("GlobalExceptionHandler GdalUnavailableException occurred: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(CommonResponse.error(503, e.getMessage()));
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<CommonResponse<?>> handleStorageException(StorageException e) {
+        log.error("GlobalExceptionHandler StorageException occurred: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(CommonResponse.error(503, "저장소에 접근할 수 없습니다. 잠시 후 다시 시도해주세요."));
     }
 
     @ExceptionHandler(NullPointerException.class)
