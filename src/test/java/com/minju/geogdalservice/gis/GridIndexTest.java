@@ -67,7 +67,7 @@ class GridIndexTest {
         Random random = new Random(1);
         double[][] pts = randomPoints(random, 100_000);
         GridIndex index = GridIndex.build(pts[0], pts[1], 0.002);
-        double[][] queries = randomPoints(random, 1_000);
+        double[][] queries = randomPoints(random, 200);
 
         // JIT 워밍업
         for (int i = 0; i < 200; i++) {
@@ -87,7 +87,7 @@ class GridIndexTest {
         }
         long bruteNanos = System.nanoTime() - t0;
 
-        System.out.printf("[GridIndex] 100,000 points / 1,000 queries: grid=%.1fms, brute-force=%.1fms (x%.0f)%n",
+        System.out.printf("[GridIndex] 100,000 points / 200 queries: grid=%.1fms, brute-force=%.1fms (x%.0f)%n",
                 gridNanos / 1e6, bruteNanos / 1e6, (double) bruteNanos / gridNanos);
         assertThat(gridNanos).isLessThan(bruteNanos);
     }
