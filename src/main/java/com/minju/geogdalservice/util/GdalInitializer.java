@@ -21,7 +21,7 @@ public class GdalInitializer {
     private volatile String version;
 
     @PostConstruct
-    void init() {
+    public void init() {
         try {
             gdal.AllRegister();
             ogr.RegisterAll();
