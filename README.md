@@ -163,7 +163,7 @@ docker run --rm -v "$PWD":/src:ro -v geogdal-gradle:/root/.gradle \
 ### 시스템 테스트 (E2E 47개 시나리오 + 성능)
 
 실제 배포 환경(App + PostGIS + LocalStack)에 HTTP 로 요청하는 시나리오 테스트와 k6 부하 테스트.
-시나리오 목록, 기대값, 실행 결과, 발견된 결함은 [docs/TEST_PLAN.md](docs/TEST_PLAN.md) 참고.
+시나리오 목록·기대값은 [테스트 계획](docs/TEST_PLAN.md), 개선 전/후 성능과 측정 신뢰성 분석은 [테스트 결과 비교 분석](docs/TEST_RESULT_ANALYSIS.md) 참고.
 
 ```bash
 bash scripts/run-system-tests.sh          # 스택 기동 + 테스트 데이터 생성 + E2E
