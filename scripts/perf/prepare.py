@@ -20,6 +20,13 @@ DATASETS = [
     ("perf-dem", "RASTER", "dem_seoul_5186.tif"),
 ]
 
+# 배포 상태뿐 아니라 실제로 조회가 되는지 확인 (예: LocalStack 재시작으로 S3 객체가 사라진 경우)
+PROBES = {
+    "perf-roads": ("/api/routes", dict(fromLon=126.95, fromLat=37.45, toLon=126.96, toLat=37.46, dataset="perf-roads")),
+    "perf-pois": ("/api/pois/nearest", dict(lon=127.0, lat=37.5, k=1, dataset="perf-pois")),
+    "perf-dem": ("/api/elevation", dict(lon=127.05, lat=37.5, dataset="perf-dem")),
+}
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -30,18 +37,20 @@ def main():
 
     for name, dtype, file in DATASETS:
         existing = api.get(f"/api/datasets/{name}")
+        probe_path, probe_params = PROBES[name]
         if existing.status == 200 and existing.data["activeVersionNo"] is not None:
-            print(f"{name}: 이미 배포됨 (v{existing.data['activeVersionNo']})")
-            continue
+            probe = api.get(probe_path, **probe_params)
+            if probe.status == 200:
+                print(f"{name}: 이미 배포되어 조회 가능 (v{existing.data['activeVersionNo']})")
+                continue
+            print(f"{name}: 배포되어 있지만 조회 실패({probe.status}) -> 다시 업로드")
         if existing.status == 404:
             check(api.create_dataset(name, dtype, "성능 테스트").status == 200, f"{name} 생성 실패")
         job = api.upload_and_wait(name, os.path.join(args.data_dir, file), auto_publish=True)
         check(job["versionStatus"] == "PUBLISHED", f"{name} 배포 실패: {job}")
         print(f"{name}: v{job['versionNo']} 배포 완료")
-
-    # 그래프 캐시 워밍업 (첫 요청의 그래프 로드 시간은 성능 측정에서 제외)
-    r = api.get("/api/routes", fromLon=126.95, fromLat=37.45, toLon=126.96, toLat=37.46, dataset="perf-roads")
-    check(r.status == 200, f"워밍업 실패: {r}")
+        probe = api.get(probe_path, **probe_params)
+        check(probe.status == 200, f"{name} 조회 확인 실패: {probe}")
     print("준비 완료")
 
 

@@ -46,7 +46,11 @@ export const options = {
   }])),
   thresholds: Object.assign(
     { http_req_failed: ['rate<0.01'] },
-    ...selected.map(([name, s]) => ({ [`http_req_duration{scenario:${name}}`]: [s.threshold] })),
+    ...selected.map(([name, s]) => ({
+      [`http_req_duration{scenario:${name}}`]: [s.threshold],
+      // 시나리오별 실패율도 기록 (오류 응답은 빨라서 응답시간을 왜곡하므로 반드시 확인)
+      [`http_req_failed{scenario:${name}}`]: ['rate<0.01'],
+    })),
   ),
   summaryTrendStats: ['avg', 'p(50)', 'p(95)', 'p(99)', 'max'],
 };
