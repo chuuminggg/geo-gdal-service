@@ -8,14 +8,19 @@ import org.gdal.gdalconst.gdalconstConstants;
 import org.gdal.osr.CoordinateTransformation;
 import org.gdal.osr.SpatialReference;
 
+import java.util.function.Consumer;
+
 /**
  * 열려 있는 래스터 핸들. 경위도(EPSG:4326) 좌표로 픽셀 값을 읽는다.
  *
- * GDAL Dataset 은 스레드 안전하지 않으므로 요청(스레드)마다 열고 try-with-resources 로 닫는다.
- * 같은 요청 안에서 여러 좌표를 조회할 때는 한 번만 열어서 재사용한다 (배치 조회, 경로 고도 샘플링).
+ * GDAL Dataset 은 스레드 안전하지 않으므로 한 번에 한 스레드만 사용한다.
+ * try-with-resources 로 close() 하면, 풀에서 빌린 핸들은 풀로 반납되고(RasterHandlePool)
+ * 그렇지 않은 핸들은 네이티브 리소스를 해제한다.
  */
 public class OpenRaster implements AutoCloseable {
 
+    private final String path;
+    private volatile Consumer<OpenRaster> releaser;
     private final Dataset dataset;
     private final double[] inverseGeoTransform;
     private final SpatialReference wgs84;
@@ -25,7 +30,8 @@ public class OpenRaster implements AutoCloseable {
     private final int width;
     private final int height;
 
-    private OpenRaster(Dataset dataset) {
+    private OpenRaster(String path, Dataset dataset) {
+        this.path = path;
         this.dataset = dataset;
         this.width = dataset.GetRasterXSize();
         this.height = dataset.GetRasterYSize();
@@ -55,11 +61,22 @@ public class OpenRaster implements AutoCloseable {
             throw new StorageException("래스터를 열 수 없습니다: " + gdalPath + " (" + gdal.GetLastErrorMsg() + ")");
         }
         try {
-            return new OpenRaster(dataset);
+            return new OpenRaster(gdalPath, dataset);
         } catch (RuntimeException e) {
             dataset.delete();
             throw e;
         }
+    }
+
+    public String path() {
+        return path;
+    }
+
+    /**
+     * close() 시 네이티브 해제 대신 releaser 로 반납 (풀에서 빌려줄 때 설정)
+     */
+    public void releaseTo(Consumer<OpenRaster> releaser) {
+        this.releaser = releaser;
     }
 
     public int bandCount() {
@@ -163,6 +180,17 @@ public class OpenRaster implements AutoCloseable {
 
     @Override
     public void close() {
+        Consumer<OpenRaster> r = releaser;
+        if (r != null) {
+            releaser = null;
+            r.accept(this);
+        } else {
+            destroy();
+        }
+    }
+
+    // 네이티브 리소스 해제
+    public void destroy() {
         if (toRaster != null) toRaster.delete();
         rasterSrs.delete();
         wgs84.delete();

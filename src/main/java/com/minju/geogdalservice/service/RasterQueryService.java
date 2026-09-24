@@ -3,13 +3,10 @@ package com.minju.geogdalservice.service;
 import com.minju.geogdalservice.common.exception.NotFoundException;
 import com.minju.geogdalservice.config.GdalS3Config;
 import com.minju.geogdalservice.dto.PixelValueDto;
-import com.minju.geogdalservice.entity.Dataset;
 import com.minju.geogdalservice.entity.DatasetType;
-import com.minju.geogdalservice.entity.DatasetVersion;
 import com.minju.geogdalservice.gis.GeometryUtils;
 import com.minju.geogdalservice.gis.OpenRaster;
-import com.minju.geogdalservice.repository.DatasetRepository;
-import com.minju.geogdalservice.util.GdalInitializer;
+import com.minju.geogdalservice.gis.RasterHandlePool;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,8 +20,8 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class RasterQueryService {
 
-    private final DatasetRepository datasetRepository;
-    private final GdalInitializer gdalInitializer;
+    private final ActiveVersionResolver activeVersionResolver;
+    private final RasterHandlePool rasterHandlePool;
 
     @Value("${aws.s3.bucket.name}")
     private String bucketName;
@@ -33,22 +30,20 @@ public class RasterQueryService {
     }
 
     public ActiveRaster resolve(String datasetName) {
-        Dataset dataset = datasetRepository.findWithActiveVersionByName(datasetName)
-                .orElseThrow(() -> new NotFoundException("데이터셋을 찾을 수 없습니다: " + datasetName));
-        if (dataset.getType() != DatasetType.RASTER) {
+        ActiveVersionResolver.ActiveVersion active = activeVersionResolver.resolve(datasetName);
+        if (active.type() != DatasetType.RASTER) {
             throw new IllegalArgumentException("래스터 데이터셋이 아닙니다: " + datasetName);
         }
-        DatasetVersion active = dataset.getActiveVersion();
-        if (active == null || active.getProcessedKey() == null) {
+        if (!active.published() || active.processedKey() == null) {
             throw new NotFoundException("배포된 버전이 없습니다: " + datasetName);
         }
-        return new ActiveRaster(datasetName, active.getVersionNo(),
-                GdalS3Config.vsis3Path(bucketName, active.getProcessedKey()));
+        return new ActiveRaster(datasetName, active.versionNo(),
+                GdalS3Config.vsis3Path(bucketName, active.processedKey()));
     }
 
+    // 풀에서 열린 핸들을 빌린다. try-with-resources 로 닫으면 풀에 반납된다.
     public OpenRaster open(ActiveRaster raster) {
-        gdalInitializer.requireAvailable();
-        return OpenRaster.open(raster.gdalPath());
+        return rasterHandlePool.borrow(raster.gdalPath());
     }
 
     public PixelValueDto pixelValues(String datasetName, double lon, double lat) {
