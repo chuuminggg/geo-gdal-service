@@ -9,9 +9,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MetadataDto {
+public class FileUploadDto {
     private String fileName;
-    private int width;
-    private int height;
-    private int bandCount;
+    private String originalFileName;
+    private long fileSize;
+    private String contentType;
+    private String s3Key;
+    private String s3Bucket;
 }
+

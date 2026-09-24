@@ -1,0 +1,30 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: geogdal-postgis
+    environment:
+      POSTGRES_DB: geogdal
+      POSTGRES_USER: geogdal
+      POSTGRES_PASSWORD: geogdal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geogdal -d geogdal"]
+      interval: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: geogdal-localstack
+    environment:
+      SERVICES: s3
+      AWS_DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./docker/localstack:/etc/localstack/init/ready.d
+
+volumes:
+  postgis-data:
