@@ -1,6 +1,5 @@
 package com.minju.geogdalservice.util;
 
-import com.minju.geogdalservice.dto.MetadataDto;
 import lombok.RequiredArgsConstructor;
 import org.gdal.gdal.Dataset;
 import org.gdal.gdal.TranslateOptions;
@@ -47,26 +46,6 @@ public class COGUtils {
             // 예외가 발생해도 네이티브 리소스 해제
             if (translated != null) translated.delete();
             if (inputDataset != null) inputDataset.delete();
-        }
-    }
-
-    // 파일 기반 메타데이터 추출
-    public MetadataDto extractMetadata(Path file, String originalFileName) {
-        gdalInitializer.requireAvailable();
-
-        Dataset dataset = gdal.Open(file.toString());
-        if (dataset == null) {
-            throw new IllegalArgumentException("GDAL로 열 수 없는 파일입니다. GeoTIFF 파일을 업로드해주세요.");
-        }
-        try {
-            return MetadataDto.builder()
-                    .width(dataset.GetRasterXSize())
-                    .height(dataset.GetRasterYSize())
-                    .bandCount(dataset.GetRasterCount())
-                    .fileName(originalFileName)
-                    .build();
-        } finally {
-            dataset.delete();
         }
     }
 }
