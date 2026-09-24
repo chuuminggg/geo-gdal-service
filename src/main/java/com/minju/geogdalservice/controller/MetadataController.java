@@ -22,12 +22,6 @@ public class MetadataController {
         return CommonResponse.success(null);
     }
 
-    // 저장소의 GeoTIFF 파일에서 메타데이터 추출 후 저장
-    @PostMapping("/extract")
-    public CommonResponse<MetadataDto> extract(@RequestParam String fileName) {
-        return CommonResponse.success(metadataService.extractAndSave(fileName));
-    }
-
     @GetMapping
     public CommonResponse<List<MetadataDto>> search(
             @RequestParam(required = false) String fileName,
