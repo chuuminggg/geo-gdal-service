@@ -1,10 +1,14 @@
 package com.minju.geogdalservice.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class MetadataDto {
     private String fileName;
     private int width;
