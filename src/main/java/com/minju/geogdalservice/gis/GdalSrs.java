@@ -14,9 +14,11 @@ public final class GdalSrs {
     private GdalSrs() {
     }
 
+    // OSR 은 오류 시 반환 코드 대신 RuntimeException("OGR Error") 을 던지므로 함께 처리한다
     public static SpatialReference fromEpsg(int epsg) {
         SpatialReference srs = new SpatialReference();
-        if (srs.ImportFromEPSG(epsg) != 0) {
+        if (!succeeded(() -> srs.ImportFromEPSG(epsg))) {
+            srs.delete();
             throw new IllegalArgumentException("지원하지 않는 EPSG 코드입니다: " + epsg);
         }
         srs.SetAxisMappingStrategy(osrConstants.OAMS_TRADITIONAL_GIS_ORDER);
@@ -25,7 +27,8 @@ public final class GdalSrs {
 
     public static SpatialReference fromWkt(String wkt) {
         SpatialReference srs = new SpatialReference();
-        if (srs.ImportFromWkt(wkt) != 0) {
+        if (!succeeded(() -> srs.ImportFromWkt(wkt))) {
+            srs.delete();
             throw new IllegalArgumentException("좌표계(WKT)를 해석할 수 없습니다.");
         }
         srs.SetAxisMappingStrategy(osrConstants.OAMS_TRADITIONAL_GIS_ORDER);
@@ -41,14 +44,23 @@ public final class GdalSrs {
         String code = srs.GetAuthorityCode(null);
         if (code == null) {
             SpatialReference clone = srs.Clone();
-            if (clone.AutoIdentifyEPSG() == 0) {
+            if (succeeded(clone::AutoIdentifyEPSG)) {
                 code = clone.GetAuthorityCode(null);
             }
+            clone.delete();
         }
         try {
             return code == null ? null : Integer.valueOf(code);
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private static boolean succeeded(java.util.function.IntSupplier ogrCall) {
+        try {
+            return ogrCall.getAsInt() == 0;
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 }
