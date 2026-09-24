@@ -23,6 +23,9 @@ public interface DatasetRepository extends JpaRepository<Dataset, Long> {
 
     List<Dataset> findAllByOrderByIdAsc();
 
+    @Query("select d from Dataset d left join fetch d.activeVersion where d.name = :name")
+    Optional<Dataset> findWithActiveVersionByName(String name);
+
     // 배포된 버전이 있는 특정 타입의 데이터셋 (경로탐색 네트워크, POI 등 서비스 대상)
     @Query("select d from Dataset d join fetch d.activeVersion where d.type = :type order by d.id")
     List<Dataset> findActiveByType(DatasetType type);
