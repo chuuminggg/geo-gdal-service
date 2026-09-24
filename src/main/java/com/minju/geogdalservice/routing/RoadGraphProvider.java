@@ -1,11 +1,10 @@
 package com.minju.geogdalservice.routing;
 
 import com.minju.geogdalservice.common.exception.NotFoundException;
-import com.minju.geogdalservice.entity.Dataset;
 import com.minju.geogdalservice.entity.DatasetType;
-import com.minju.geogdalservice.entity.DatasetVersion;
 import com.minju.geogdalservice.pipeline.PipelineEvents;
-import com.minju.geogdalservice.repository.DatasetRepository;
+import com.minju.geogdalservice.service.ActiveVersionResolver;
+import com.minju.geogdalservice.service.ActiveVersionResolver.ActiveVersion;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class RoadGraphProvider {
 
-    private final DatasetRepository datasetRepository;
+    private final ActiveVersionResolver activeVersionResolver;
     private final RoadGraphLoader loader;
     private final Executor warmUpExecutor;
     private final Map<Long, CachedGraph> cache = new ConcurrentHashMap<>();
@@ -40,29 +39,31 @@ public class RoadGraphProvider {
     private record CachedGraph(RoadGraph graph, long generation) {
     }
 
-    public RoadGraphProvider(DatasetRepository datasetRepository, RoadGraphLoader loader,
+    public RoadGraphProvider(ActiveVersionResolver activeVersionResolver, RoadGraphLoader loader,
                              @Qualifier("pipelineExecutor") Executor warmUpExecutor) {
-        this.datasetRepository = datasetRepository;
+        this.activeVersionResolver = activeVersionResolver;
         this.loader = loader;
         this.warmUpExecutor = warmUpExecutor;
     }
 
     public RoadGraph get(String datasetName) {
-        Dataset dataset = datasetRepository.findWithActiveVersionByName(datasetName)
-                .orElseThrow(() -> new NotFoundException("데이터셋을 찾을 수 없습니다: " + datasetName));
-        if (dataset.getType() != DatasetType.ROAD_NETWORK) {
+        ActiveVersion active = activeVersionResolver.resolve(datasetName);
+        if (active.type() != DatasetType.ROAD_NETWORK) {
             throw new IllegalArgumentException("도로 네트워크 데이터셋이 아닙니다: " + datasetName);
         }
-        DatasetVersion active = dataset.getActiveVersion();
-        if (active == null) {
+        if (!active.published()) {
             throw new NotFoundException("배포된 도로 네트워크 버전이 없습니다: " + datasetName);
         }
         long generation = elevationGeneration.get();
-        CachedGraph cached = cache.compute(active.getId(), (id, current) ->
-                current != null && current.generation() == generation
-                        ? current
-                        : new CachedGraph(loader.load(id, datasetName, active.getVersionNo()), generation));
-        evictOtherVersions(datasetName, active.getId());
+        CachedGraph current = cache.get(active.versionId());
+        if (current != null && current.generation() == generation) {
+            return current.graph();   // 대부분의 요청: 잠금 없이 반환
+        }
+        CachedGraph cached = cache.compute(active.versionId(), (id, existing) ->
+                existing != null && existing.generation() == generation
+                        ? existing
+                        : new CachedGraph(loader.load(id, datasetName, active.versionNo()), generation));
+        evictOtherVersions(datasetName, active.versionId());
         return cached.graph();
     }
 
@@ -70,6 +71,7 @@ public class RoadGraphProvider {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPublished(PipelineEvents.DatasetPublished event) {
         if (event.type() == DatasetType.ROAD_NETWORK) {
+            activeVersionResolver.evict(event.datasetName());   // 리스너 실행 순서와 무관하게 새 버전으로 워밍업
             evictOtherVersions(event.datasetName(), event.versionId());
             warmUpExecutor.execute(() -> warmUp(event.datasetName()));
         } else if (event.type() == DatasetType.RASTER && event.datasetName().equals(loader.elevationDataset())) {
