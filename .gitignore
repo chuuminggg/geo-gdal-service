@@ -38,3 +38,7 @@ out/
 
 ### Raster storage ###
 data/
+
+### Python ###
+__pycache__/
+*.pyc
